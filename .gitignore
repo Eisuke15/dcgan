@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# cache
+_cache_*
+
+# 抽出した画像を保存するためのディレクトリ
+likely/
+unlikely/
