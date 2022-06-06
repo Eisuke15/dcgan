@@ -76,7 +76,9 @@ elif opt.dataset == 'lsun':
                     transforms.CenterCrop(opt.imageSize),
                     transforms.ToTensor(),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                ])
+                ]),
+                opt.dataroot,
+                opt.imageSize,
             )
     else:
         dataset = dset.LSUN(root=opt.dataroot, classes=classes,
