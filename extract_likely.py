@@ -17,7 +17,7 @@ for key, value in ILSVRC_calss_index.items():
         restaurant_lebel = int(key)
 
 class RestaurantLikeDataset(Dataset):
-    def __init__(self, transform, dataroot, device, batch_size_to_predict=128):
+    def __init__(self, transform, dataroot, device, batch_size_to_predict=64):
         print("Load lsun restaurant dataset")
         self.transformed_lsun_restuaurant_dataset = datasets.LSUN(
             root=dataroot,
@@ -44,7 +44,12 @@ class RestaurantLikeDataset(Dataset):
             net = models.resnet50(pretrained=True)
             net.to(device)
             net.eval()
-            dataloader = DataLoader(base_lsun_restaurant_dataset, batch_size=batch_size_to_predict, shuffle=False)
+            dataloader = DataLoader(
+                    base_lsun_restaurant_dataset,
+                    batch_size=batch_size_to_predict,
+                    shuffle=False,
+                    num_workers=2,
+                )
             now_index = 0
 
             with open('restaurant_indexes.txt', "w") as f:
