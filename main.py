@@ -1,17 +1,18 @@
-from __future__ import print_function
 import argparse
 import os
 import random
+
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 
+from extract_likely import RestaurantLikeDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True, help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake')
@@ -32,7 +33,7 @@ parser.add_argument('--netG', default='', help="path to netG (to continue traini
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
-parser.add_argument('--classes', default='bedroom', help='comma separated list of classes for the lsun data set')
+parser.add_argument('--lsun-class', default='bedroom', help='class for the lsun data set')
 
 opt = parser.parse_args()
 print(opt)
@@ -67,14 +68,24 @@ if opt.dataset in ['imagenet', 'folder', 'lfw']:
                                ]))
     nc=3
 elif opt.dataset == 'lsun':
-    classes = [ c + '_train' for c in opt.classes.split(',')]
-    dataset = dset.LSUN(root=opt.dataroot, classes=classes,
-                        transform=transforms.Compose([
-                            transforms.Resize(opt.imageSize),
-                            transforms.CenterCrop(opt.imageSize),
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                        ]))
+    classes = [opt.lsun_class + '_train']
+    if opt.lsun_class == 'restaurant':
+        dataset = RestaurantLikeDataset(
+                transforms.Compose([
+                    transforms.Resize(opt.imageSize),
+                    transforms.CenterCrop(opt.imageSize),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                ])
+            )
+    else:
+        dataset = dset.LSUN(root=opt.dataroot, classes=classes,
+                            transform=transforms.Compose([
+                                transforms.Resize(opt.imageSize),
+                                transforms.CenterCrop(opt.imageSize),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
     nc=3
 elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(root=opt.dataroot, download=True,
