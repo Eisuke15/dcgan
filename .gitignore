@@ -131,9 +131,5 @@ dmypy.json
 # cache
 _cache_*
 
-# 抽出した画像を保存するためのディレクトリ
-likely/
-unlikely/
-
 # store images and params here
 data/
