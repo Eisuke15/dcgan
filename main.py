@@ -195,7 +195,6 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
             nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            nn.Sigmoid()
         )
 
     def forward(self, input):
@@ -213,7 +212,7 @@ if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
 print(netD)
 
-criterion = nn.BCELoss()
+criterion = nn.BCEWithLogitsLoss()
 
 fixed_noise = torch.randn(opt.batchSize, nz, 1, 1, device=device)
 real_label = 1
@@ -241,7 +240,7 @@ for epoch in range(opt.niter):
         output = netD(real_cpu)
         errD_real = criterion(output, label)
         errD_real.backward()
-        D_x = output.mean().item()
+        D_x = torch.where(output > 0.5, 1., 0.).mean().item()
 
         # train with fake
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
@@ -250,7 +249,7 @@ for epoch in range(opt.niter):
         output = netD(fake.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
-        D_G_z1 = output.mean().item()
+        D_G_z1 = torch.where(output > 0.5, 1., 0.).mean().item()
         errD = errD_real + errD_fake
         optimizerD.step()
 
@@ -262,7 +261,7 @@ for epoch in range(opt.niter):
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
-        D_G_z2 = output.mean().item()
+        D_G_z2 = torch.where(output > 0.5, 1., 0.).mean().item()
         optimizerG.step()
 
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
