@@ -1,68 +1,57 @@
-from torchvision import datasets
-import argparse
-from torchvision import transforms
-from torchvision import models
-from torch.utils.data import DataLoader
-import torch
 import json
+
+import torch
+from torch.utils.data import Dataset
+from torchvision import datasets, models, transforms
 from tqdm import tqdm
 
 # imagenet normalization values
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 
-def unnorm(img):
-    """unnormalize the image"""
-    for t, m, s in zip(img, mean, std):
-        t.mul_(s).add_(m)
-    return img
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--dataroot', required=True, help='path to dataset')
-parser.add_argument('--imageSize', type=int, default=256, help='the height / width of the input image to network')
-parser.add_argument('--start', type=int, default=0, help='the index at which start extracting')
-
-opt = parser.parse_args()
-
-dataset = datasets.LSUN(
-    root=opt.dataroot,
-    classes=['restaurant_train'],
-    transform=transforms.Compose([
-        transforms.Resize(opt.imageSize),
-        transforms.CenterCrop(opt.imageSize),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=mean, std=std
-        ),
-    ],
-))
-
-dataloader = DataLoader(dataset, batch_size=1)
-
-net = models.resnet50(pretrained=True).to(device)
-net.eval()
 
 ILSVRC_calss_index = json.load(open('imagenet_class_index.json', 'r'))
 
-counter = 0
-for i, data in tqdm(enumerate(dataloader, opt.start), total=len(dataloader) - opt.start):
-    image_data, label = data
-    image_data = image_data.to(device)
-    predicted_label = torch.argmax(net(image_data), dim=1)
-    predicted_class = ILSVRC_calss_index[str(predicted_label.item())][1]
-    image = unnorm(image_data.squeeze().to(device)).to(device)
-    img_pil = transforms.ToPILImage(mode='RGB')(image)
+class RestaurantLikeDataset(Dataset):
+    def __init__(self, transform, dataroot, image_size):
+        print("firstly, load lsun restaurant dataset")
+        self.base_lsun_restaurant_dataset = datasets.LSUN(
+            root=dataroot,
+            classes=['restaurant_train'],
+            transform=transforms.Compose([
+                transforms.Resize(image_size),
+                transforms.CenterCrop(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=mean, std=std
+                ),
+            ],
+        ))
+        self.transformed_lsun_restuaurant_dataset = datasets.LSUN(
+            root=dataroot,
+            classes=['restaurant_train'],
+            transform=transform,
+        )
+        print("Then classsify lsun restaurant dataset by resnet50, extract images classified as restaurant")
+        self.true_restaurant_indexes = []
+        net = models.resnet50(pretrained=True).to(device)
+        net.eval()
+        for i in tqdm(range(len(self.base_lsun_restaurant_dataset))):
+            image, _ = self.base_lsun_restaurant_dataset(i)
+            image = image.to(device).unsqueeze(0)
+            predicted_label = torch.argmax(net(image), dim=1)
+            predicted_class = ILSVRC_calss_index[str(predicted_label.item())][1]
 
-    if predicted_class != 'restaurant': # The image is most likely a restaurant.
-        img_pil.save(f'unlikely/{i}_{predicted_class}.png')
-        counter += 1
+            if predicted_class == "restaurant":
+                self.true_restaurant_indexes.append(i)
 
-    else: # The image does not appear to be a restaurant.
-        img_pil.save(f'likely/{i}_{predicted_class}.png')
+        print(f"total image: {len(self.base_lsun_restaurant_dataset)}")
+        print(f"like restaurant {len(self.base_lsun_restaurant_dataset) - len(self.true_restaurant_indexes)}")
 
-
-print(f"total image: {len(dataloader)}")
-print(f"like restaurant {len(dataloader) - counter}")
-print(f"unlike restaurant {counter}")
+    def __len__(self):
+        return len(self.true_restaurant_indexes)
+    
+    def __getitem__(self, index):
+        true_restaurant_index = self.true_restaurant_indexes[index]
+        return self.transformed_lsun_restuaurant_dataset[true_restaurant_index]
