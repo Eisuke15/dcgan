@@ -26,7 +26,7 @@ parser.add_argument('--ndf', type=int, default=64)
 parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-parser.add_argument('--cuda', action='store_true', help='enables cuda')
+parser.add_argument('--gpu', type=int, default=1, help='specify GPU index')
 parser.add_argument('--dry-run', action='store_true', help='check a single training cycle works')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
@@ -51,8 +51,7 @@ torch.manual_seed(opt.manualSeed)
 
 cudnn.benchmark = True
 
-if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+device = torch.device(f"cuda:{opt.gpu}" if torch.cuda.is_available() else "cpu")
   
 if opt.dataroot is None and str(opt.dataset).lower() != 'fake':
     raise ValueError("`dataroot` parameter is required for dataset \"%s\"" % opt.dataset)
@@ -71,14 +70,14 @@ elif opt.dataset == 'lsun':
     classes = [opt.lsun_class + '_train']
     if opt.lsun_class == 'restaurant':
         dataset = RestaurantLikeDataset(
-                transforms.Compose([
+                transform=transforms.Compose([
                     transforms.Resize(opt.imageSize),
                     transforms.CenterCrop(opt.imageSize),
                     transforms.ToTensor(),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                 ]),
-                opt.dataroot,
-                opt.imageSize,
+                dataroot=opt.dataroot,
+                device=device,
             )
     else:
         dataset = dset.LSUN(root=opt.dataroot, classes=classes,
@@ -116,7 +115,7 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
-device = torch.device("cuda:0" if opt.cuda else "cpu")
+
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
@@ -161,7 +160,7 @@ class Generator(nn.Module):
         )
 
     def forward(self, input):
-        if input.is_cuda and self.ngpu > 1:
+        if self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
@@ -200,7 +199,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, input):
-        if input.is_cuda and self.ngpu > 1:
+        if self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
