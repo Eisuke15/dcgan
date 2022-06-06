@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+from datetime import datetime
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -31,7 +32,7 @@ parser.add_argument('--dry-run', action='store_true', help='check a single train
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
+parser.add_argument('--outf', default='./data/'+ datetime.now().strftime("%Y-%m-%d-%H-%M"), help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--lsun-class', default='bedroom', help='class for the lsun data set')
 
