@@ -133,3 +133,6 @@ _cache_*
 
 # store images and params here
 data/
+
+# nohup
+nohup.out
