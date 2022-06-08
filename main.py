@@ -35,6 +35,7 @@ parser.add_argument('--netD', default='', help="path to netD (to continue traini
 parser.add_argument('--outf', default='./data/'+ datetime.now().strftime("%Y-%m-%d-%H-%M"), help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--lsun-class', default='bedroom', help='class for the lsun data set')
+parser.add_argument('--pre-imagenet', action="store_true", help="filter restaurant images by the model trained by imagenet")
 
 opt = parser.parse_args()
 print(opt)
@@ -69,7 +70,7 @@ if opt.dataset in ['imagenet', 'folder', 'lfw']:
     nc=3
 elif opt.dataset == 'lsun':
     classes = [opt.lsun_class + '_train']
-    if opt.lsun_class == 'restaurant':
+    if opt.lsun_class == 'restaurant' and opt.pre_imagenet:
         dataset = RestaurantLikeDataset(
                 transform=transforms.Compose([
                     transforms.Resize(opt.imageSize),
