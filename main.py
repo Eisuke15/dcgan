@@ -1,9 +1,9 @@
 import argparse
-from multiprocessing.sharedctypes import Value
+import logging
 import os
 import random
+import re
 from datetime import datetime
-from math import log2
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -40,20 +40,27 @@ parser.add_argument('--lsun-class', default='bedroom', help='class for the lsun 
 parser.add_argument('--pre-imagenet', action="store_true", help="filter restaurant images by the model trained by imagenet")
 
 opt = parser.parse_args()
-print(opt)
-
-image_size = opt.imageSize
-if image_size not in [64, 256]:
-    raise ValueError('imageSize must be 64 or 256')
 
 try:
     os.makedirs(opt.outf)
 except OSError:
     pass
 
+logging.basicConfig(
+    filename=os.path.join(opt.outf, "stdout.log"),
+    format="%(levelname)s - %(message)s",
+    level=logging.INFO
+)
+
+logging.info(opt)
+
+image_size = opt.imageSize
+if image_size not in [64, 256]:
+    raise ValueError('imageSize must be 64 or 256')
+
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
-print("Random Seed: ", opt.manualSeed)
+logging.info(f"Random Seed: {opt.manualSeed}")
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
 
@@ -211,7 +218,11 @@ netG = Generator(ngpu).to(device)
 netG.apply(weights_init)
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
-print(netG)
+    start_epoch = int(re.findall(r'\d+', opt.netG)[-1]) + 1
+else:
+    start_epoch = 0
+logging.info(f'start epoch {start_epoch}')
+logging.info(netG)
 
 
 class Discriminator(nn.Module):
@@ -280,7 +291,7 @@ netD = Discriminator(ngpu).to(device)
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
-print(netD)
+logging.info(netD)
 
 criterion = nn.BCEWithLogitsLoss()
 
@@ -295,7 +306,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 if opt.dry_run:
     opt.niter = 1
 
-for epoch in range(opt.niter):
+for epoch in range(start_epoch, opt.niter):
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -334,7 +345,7 @@ for epoch in range(opt.niter):
         D_G_z2 = torch.where(output > 0.5, 1., 0.).mean().item()
         optimizerG.step()
 
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+        logging.info('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
               % (epoch, opt.niter, i, len(dataloader),
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
         if i % 100 == 0:
