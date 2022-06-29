@@ -132,7 +132,10 @@ dmypy.json
 _cache_*
 
 # store images and params here
-data/
+data/*
 
 # nohup
 nohup.out
+
+# except .gitkeep
+!.gitkeep
