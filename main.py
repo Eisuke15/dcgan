@@ -20,7 +20,6 @@ from net import Discriminator, Generator
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot', required=False, help='path to dataset')
-parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network. 64 | 256')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
 parser.add_argument('--gpu', type=int, default=1, help='specify GPU index')
@@ -44,10 +43,6 @@ logging.basicConfig(
 
 logging.info(opt)
 
-image_size = opt.imageSize
-if image_size not in [64, 256]:
-    raise ValueError('imageSize must be 64 or 256')
-
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 logging.info(f"Random Seed: {opt.manualSeed}")
@@ -61,23 +56,26 @@ device = torch.device(f"cuda:{opt.gpu}" if torch.cuda.is_available() else "cpu")
 classes = [opt.lsun_class + '_train']
 if opt.lsun_class == 'restaurant' and opt.pre_imagenet:
     dataset = RestaurantLikeDataset(
-            transform=transforms.Compose([
-                transforms.Resize(opt.imageSize),
-                transforms.CenterCrop(opt.imageSize),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]),
-            dataroot=opt.dataroot,
-            device=device,
-        )
+        transform=transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(256),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]),
+        dataroot=opt.dataroot,
+        device=device,
+    )
 else:
-    dataset = dset.LSUN(root=opt.dataroot, classes=classes,
-                        transform=transforms.Compose([
-                            transforms.Resize(opt.imageSize),
-                            transforms.CenterCrop(opt.imageSize),
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                        ]))
+    dataset = dset.LSUN(
+        root=opt.dataroot,
+        classes=classes,
+        transform=transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(256),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ])
+    )
 
 
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True, num_workers=2)
