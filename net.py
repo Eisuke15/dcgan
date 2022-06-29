@@ -3,7 +3,7 @@ from torch import nn
 
 class Generator(nn.Module):
     def __init__(self, nz):
-        super(Generator, self).__init__()
+        super().__init__()
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(nz, 256 * 8, 4, 1, 0, bias=False),
@@ -31,11 +31,9 @@ class Generator(nn.Module):
         return self.main(input)
 
 
-
 class Discriminator(nn.Module):
-    def __init__(self, ngpu):
-        super(Discriminator, self).__init__()
-        self.ngpu = ngpu
+    def __init__(self):
+        super().__init__()
         self.main = nn.Sequential(
             # input is 3 x 256 x 256
             nn.Conv2d(3, 256, 8, 4, 2),
@@ -53,10 +51,5 @@ class Discriminator(nn.Module):
             nn.Conv2d(256 * 8, 1, 4, 1, 0),
         )
 
-    def forward(self, input):
-        if self.ngpu > 1:
-            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
-        else:
-            output = self.main(input)
-
-        return output.view(-1, 1).squeeze(1)
+    def forward(self, input):  
+        return self.main(input).view(-1)
