@@ -21,7 +21,7 @@ from net import Discriminator, Generator
 parser = argparse.ArgumentParser()
 parser.add_argument('dataroot', help='path to dataset')
 parser.add_argument('--nz', type=int, default=100, help='size of latent z vector')
-parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
+parser.add_argument('--niter', type=int, default=100, help='number of epochs to train for')
 parser.add_argument('--gpu', type=int, default=0, help='specify GPU index')
 parser.add_argument('--outf', default='./data/'+ datetime.now().strftime("%Y-%m-%d-%H-%M"), help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
