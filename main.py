@@ -28,8 +28,11 @@ parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--lc', default='bedroom', help='class for lsun data set')
 parser.add_argument('--pre-imagenet', action="store_true", help="filter restaurant images by the model trained by imagenet")
 parser.add_argument('--batchSize', default=256, type=int, help="batch size")
+parser.add_argument('--bigImage', action="store_true", help="image size will be 256 x 256")
 
 opt = parser.parse_args()
+
+image_size = 256 if opt.bigImage else 128
 
 try:
     os.makedirs(opt.outf)
@@ -58,8 +61,8 @@ classes = [opt.lc + '_train']
 if opt.lc == 'restaurant' and opt.pre_imagenet:
     dataset = RestaurantLikeDataset(
         transform=transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(256),
+            transforms.Resize(image_size),
+            transforms.CenterCrop(image_size),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]),
@@ -71,8 +74,8 @@ else:
         root=opt.dataroot,
         classes=classes,
         transform=transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(256),
+            transforms.Resize(image_size),
+            transforms.CenterCrop(image_size),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
@@ -93,12 +96,12 @@ def weights_init(m):
         torch.nn.init.zeros_(m.bias)
 
 
-netG = Generator(nz).to(device)
+netG = Generator(nz, opt.bigImage).to(device)
 netG.apply(weights_init)
 logging.info(netG)
 
 
-netD = Discriminator().to(device)
+netD = Discriminator(opt.bigImage).to(device)
 netD.apply(weights_init)
 logging.info(netD)
 
@@ -109,8 +112,8 @@ real_label = 1
 fake_label = 0
 
 # setup optimizer
-optimizerD = optim.Adam(netD.parameters())
-optimizerG = optim.Adam(netG.parameters())
+optimizerD = optim.Adam(netD.parameters(), lr=0.0002, betas=(0.5, 0.999))
+optimizerG = optim.Adam(netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
