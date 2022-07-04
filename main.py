@@ -15,8 +15,9 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 
+import dcgan
+import sagan
 from extract_likely import RestaurantLikeDataset
-from net import Discriminator, Generator
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dataroot', help='path to dataset')
@@ -29,6 +30,7 @@ parser.add_argument('--lc', default='bedroom', help='class for lsun data set')
 parser.add_argument('--pre-imagenet', action="store_true", help="filter restaurant images by the model trained by imagenet")
 parser.add_argument('--batchSize', default=256, type=int, help="batch size")
 parser.add_argument('--bigImage', action="store_true", help="image size will be 256 x 256")
+parser.add_argument('--sagan', action="store_true", help="use Self Attention GAN")
 
 opt = parser.parse_args()
 
@@ -96,12 +98,14 @@ def weights_init(m):
         torch.nn.init.zeros_(m.bias)
 
 
-netG = Generator(nz, opt.bigImage).to(device)
+netG = sagan.Generator(nz, opt.bigImage) if opt.sagan else dcgan.Generator(nz, opt.bigImage)
+netG.to(device)
 netG.apply(weights_init)
 logging.info(netG)
 
 
-netD = Discriminator(opt.bigImage).to(device)
+netD = sagan.Discriminator(opt.bigImage) if opt.sagan else dcgan.Discriminator(opt.bigImage)
+netD.to(device)
 netD.apply(weights_init)
 logging.info(netD)
 
@@ -128,16 +132,26 @@ for epoch in range(opt.niter):
                            dtype=real_cpu.dtype, device=device)
 
         output = netD(real_cpu)
-        errD_real = criterion(output, label)
+        if opt.sagan:
+            output, _, _ = output
+            errD_real = nn.ReLU()(1.0 - output).mean()
+        else:
+            errD_real = criterion(output, label)
         errD_real.backward()
         D_x = torch.where(output > 0.5, 1., 0.).mean().item()
 
         # train with fake
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
         fake = netG(noise)
+        if opt.sagan:
+            fake, _, _ = fake
         label.fill_(fake_label)
         output = netD(fake.detach())
-        errD_fake = criterion(output, label)
+        if opt.sagan:
+            output, _, _ = output
+            errD_fake = nn.ReLU()(1.0 + output).mean()
+        else:
+            errD_fake = criterion(output, label)
         errD_fake.backward()
         D_G_z1 = torch.where(output > 0.5, 1., 0.).mean().item()
         errD = errD_real + errD_fake
@@ -149,7 +163,11 @@ for epoch in range(opt.niter):
         netG.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
-        errG = criterion(output, label)
+        if opt.sagan:
+            output, _, _ = output
+            errG = - output.mean()
+        else:
+            errG = criterion(output, label)
         errG.backward()
         D_G_z2 = torch.where(output > 0.5, 1., 0.).mean().item()
         optimizerG.step()
@@ -158,13 +176,11 @@ for epoch in range(opt.niter):
               % (epoch, opt.niter, i, len(dataloader),
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
         if i % 100 == 0:
-            vutils.save_image(real_cpu[:64],
-                    '%s/real_samples.png' % opt.outf,
-                    normalize=True)
+            vutils.save_image(real_cpu[:64], '%s/real_samples.png' % opt.outf, normalize=True)
             fake = netG(fixed_noise)
-            vutils.save_image(fake.detach(),
-                    '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
-                    normalize=True)
+            if opt.sagan:
+                fake, _, _ = fake
+            vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch), normalize=True)
 
     # do checkpointing
     torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
