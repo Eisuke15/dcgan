@@ -116,8 +116,8 @@ real_label = 1
 fake_label = 0
 
 # setup optimizer
-optimizerD = optim.Adam(netD.parameters(), lr=0.0002, betas=(0.5, 0.999))
-optimizerG = optim.Adam(netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
+optimizerD = optim.Adam(netD.parameters(), lr=0.0004, betas=(0.0, 0.9))
+optimizerG = optim.Adam(netG.parameters(), lr=0.0001, betas=(0.0, 0.9))
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
